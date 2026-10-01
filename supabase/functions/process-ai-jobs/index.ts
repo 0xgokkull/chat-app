@@ -119,12 +119,47 @@ Current message to analyze:
         await supabaseClient.from('action_requests').insert([{
           group_id: job.group_id,
           source_message_id: sourceMessage.id,
-          created_by: sourceMessage.sender_id, // Wait, technically should be the parsed requester_user_id, but safer to use actual sender
+          created_by: sourceMessage.sender_id,
           assigned_user_id: parsedOutput.assignee_user_id,
           action_type: parsedOutput.intent === 'work_status_request' ? 'status_check' : 'checklist',
           title: parsedOutput.title || 'Action Required',
           description: parsedOutput.description || ''
         }]);
+
+        // Integrate Resend API: Email the assignee instantly!
+        const assignee = members.find(m => m.user_id === parsedOutput.assignee_user_id);
+        const assigneeEmail = assignee?.profiles?.email;
+        const RESEND_API_KEY = Deno.env.get("RESEND_API");
+
+        if (assigneeEmail && RESEND_API_KEY) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${RESEND_API_KEY}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                from: "AI Chat Assistant <onboarding@resend.dev>",
+                to: [assigneeEmail],
+                subject: `New Task Assigned: ${parsedOutput.title}`,
+                html: `
+                  <div style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #4f46e5;">New AI Action Request</h2>
+                    <p>You have been assigned a new task in the group chat.</p>
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                      <strong>${parsedOutput.title}</strong><br/>
+                      ${parsedOutput.description}
+                    </div>
+                    <p style="margin-top: 20px; color: #6b7280; font-size: 12px;">This is an automated message from your AI Chat App.</p>
+                  </div>
+                `
+              })
+            });
+          } catch (emailError) {
+            console.error("Failed to send Resend email:", emailError);
+          }
+        }
       }
 
       // Mark job as completed

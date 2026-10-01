@@ -6,23 +6,43 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
+    
+    const validUsername = /^[a-zA-Z0-9_]+$/.test(username);
+    if (!validUsername) {
+      return setErrorMessage('Username can only contain letters, numbers, and underscores.');
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
-        options: { data: { display_name: displayName } }
       });
       if (error) throw error;
 
-      // Note: In production, the backend might handle profile creation via Postgres triggers on auth.users, 
-      // but for this MVP we explicitly insert the profile or assume a trigger exists.
+      if (data?.user) {
+        const { error: profileError } = await supabase.from('profiles').upsert([{
+          id: data.user.id,
+          email: email,
+          display_name: displayName,
+          username: `@${username.toLowerCase()}`
+        }]);
+
+        if (profileError) {
+          if (profileError.code === '23505') {
+            throw new Error('Username is already taken.');
+          }
+          throw profileError;
+        }
+      }
       
       navigate('/');
     } catch (error) {
@@ -60,7 +80,14 @@ export default function SignUp() {
           <form className="space-y-6 relative z-10" onSubmit={handleSignup}>
             <div className="space-y-2">
               <label className="block text-xs font-bold text-indigo-300/80 uppercase tracking-wider">Display Name</label>
-              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-white transition-all backdrop-blur-md" required />
+              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Arun Kumar" className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-white transition-all backdrop-blur-md" required />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-indigo-300/80 uppercase tracking-wider">Username</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-gray-500 font-bold">@</span>
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="arun_dev" className="w-full pl-10 pr-5 py-4 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-white transition-all backdrop-blur-md" required />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="block text-xs font-bold text-indigo-300/80 uppercase tracking-wider">Email</label>

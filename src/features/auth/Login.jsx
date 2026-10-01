@@ -24,33 +24,45 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white selection:bg-indigo-500 font-sans relative overflow-hidden">
-      <div className="w-full max-w-md p-8 relative z-10">
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-10 rounded-3xl shadow-2xl">
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-2">Login</h1>
-            <p className="text-gray-400 text-sm">Welcome back to the AI Chat</p>
+    <div className="min-h-screen flex items-center justify-center mesh-bg text-white selection:bg-indigo-500 font-sans relative overflow-hidden">
+      {/* Floating Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600 rounded-full blur-[150px] opacity-30 animate-float-delayed pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600 rounded-full blur-[150px] opacity-30 animate-float pointer-events-none"></div>
+      
+      <div className="w-full max-w-md p-8 relative z-10 animate-float">
+        <div className="glass-panel p-10 rounded-3xl relative overflow-hidden">
+          {/* Shine effect */}
+          <div className="absolute top-0 left-[-100%] w-[200%] h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-45deg] animate-[shine_3s_ease-in-out_infinite]"></div>
+          
+          <div className="text-center mb-10 relative z-10">
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center shadow-[0_0_30px_rgba(79,70,229,0.3)] overflow-hidden border border-white/10">
+                <img src="/logo.jpg" alt="Chaat Logo" className="w-full h-full object-cover mix-blend-screen" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-br from-indigo-200 via-white to-purple-300 mb-2 drop-shadow-sm">Chaat</h1>
+            <p className="text-indigo-200/60 text-sm tracking-wide">Sync your neural interface</p>
           </div>
           {errorMessage && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 text-sm text-center">
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center backdrop-blur-md">
               {errorMessage}
             </div>
           )}
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6 relative z-10" onSubmit={handleLogin}>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white" required />
+              <label className="block text-xs font-bold text-indigo-300/80 uppercase tracking-wider">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-white transition-all backdrop-blur-md" required />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white" required />
+              <label className="block text-xs font-bold text-indigo-300/80 uppercase tracking-wider">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-white transition-all backdrop-blur-md" required />
             </div>
-            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
-              {loading ? 'Signing in...' : 'Sign In'}
+            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold tracking-wide py-4 rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? 'Authenticating...' : 'Initialize Connection'}
             </button>
           </form>
-          <p className="mt-8 text-center text-sm text-gray-400">
-            Don't have an account? <Link to="/signup" className="text-indigo-400 font-semibold">Sign up</Link>
+          <p className="mt-8 text-center text-sm text-gray-400 relative z-10">
+            Don't have an account? <Link to="/signup" className="text-indigo-400 font-semibold hover:text-indigo-300 transition-colors hover:underline">Sign up</Link>
           </p>
         </div>
       </div>

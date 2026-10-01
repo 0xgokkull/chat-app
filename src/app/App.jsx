@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Login from '../features/auth/Login';
 import SignUp from '../features/auth/SignUp';
 import { useAuth } from '../features/auth/useAuth';
@@ -17,6 +17,38 @@ function ProtectedRoute({ children }) {
 function MainLayout() {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    async function checkInvite() {
+      if (!user) return;
+      const params = new URLSearchParams(location.search);
+      const inviteCode = params.get('invite');
+      if (inviteCode) {
+        // Find group by invite code
+        const { data: group } = await supabase
+          .from('groups')
+          .select('id')
+          .eq('invite_code', inviteCode)
+          .single();
+        
+        if (group) {
+          // Join group
+          await supabase.from('group_members').upsert({
+            group_id: group.id,
+            user_id: user.id,
+            role: 'member'
+          }, { onConflict: 'group_id,user_id' });
+          
+          setSelectedGroupId(group.id);
+          // Remove the query parameter from URL
+          navigate('/', { replace: true });
+        }
+      }
+    }
+    checkInvite();
+  }, [user, location.search, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

@@ -53,24 +53,24 @@ export default function ActionResponseModal({ request, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#111116] border border-white/10 p-6 rounded-2xl w-full max-w-md shadow-2xl animate-float-delayed relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sandstone-900/30 backdrop-blur-sm animate-fade-in">
+      <div className="bg-sandstone-50 border border-sandstone-300 p-6 rounded-2xl w-full max-w-md shadow-xl animate-float-delayed relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-accent"></div>
         
-        <h3 className="text-xl font-bold text-white mb-2">Respond to Action</h3>
-        <p className="text-sm text-gray-400 mb-6 border-l-2 border-indigo-500 pl-3">
+        <h3 className="text-xl font-bold text-sandstone-900 mb-2">Respond to Action</h3>
+        <p className="text-sm text-sandstone-800 mb-6 border-l-2 border-accent pl-3">
           {request.title}
         </p>
 
-        {error && <div className="mb-4 p-3 rounded-lg bg-red-500/20 text-red-400 text-sm">{error}</div>}
+        {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-500 text-sm">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide mb-1">Status</label>
+            <label className="block text-xs font-bold text-warm-muted uppercase tracking-wide mb-1">Status</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-white border border-sandstone-300 rounded-xl px-4 py-3 text-sandstone-900 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 shadow-sm"
             >
               <option value="completed">Completed</option>
               <option value="in_progress">In Progress</option>
@@ -79,13 +79,13 @@ export default function ActionResponseModal({ request, onClose }) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide mb-1">Notes / Evidence</label>
+            <label className="block text-xs font-bold text-warm-muted uppercase tracking-wide mb-1">Notes / Evidence</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               placeholder="Add details, links, or proof of completion..."
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+              className="w-full bg-white border border-sandstone-300 rounded-xl px-4 py-3 text-sandstone-900 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 resize-none placeholder-warm-muted shadow-sm"
             />
           </div>
 
@@ -93,14 +93,14 @@ export default function ActionResponseModal({ request, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-medium"
+              className="px-5 py-2.5 rounded-xl text-sandstone-800 hover:text-sandstone-900 hover:bg-sandstone-200 transition-all font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white font-bold shadow-sm shadow-accent/20 transition-all disabled:opacity-50"
             >
               {loading ? 'Submitting...' : 'Submit Verification'}
             </button>

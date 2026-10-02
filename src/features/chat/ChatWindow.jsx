@@ -4,13 +4,11 @@ import { useAuth } from '../auth/useAuth';
 import { useGroupRealtime } from './useGroupRealtime';
 import MessageBubble from './MessageBubble';
 import MessageComposer from './MessageComposer';
-import PriorityPanel from './PriorityPanel';
 
 export default function ChatWindow({ groupId }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showPriorityPanel, setShowPriorityPanel] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
   const messagesEndRef = useRef(null);
 
@@ -31,7 +29,8 @@ export default function ChatWindow({ groupId }) {
         profiles:sender_id ( display_name, username, avatar_url ),
         action_requests (
           id, action_type, title, description, state, due_at, group_id, assigned_user_id,
-          assignee:assigned_user_id(display_name, username, avatar_url)
+          assignee:assigned_user_id(display_name, username, avatar_url),
+          checklist_items (id, label, category, state, confirmed_by, confirmed_at, profiles:confirmed_by (display_name, avatar_url, email))
         )
       `)
       .eq('group_id', groupId)
@@ -49,25 +48,53 @@ export default function ChatWindow({ groupId }) {
   }, [fetchMessages]);
 
   const handleNewMessage = useCallback((newMsg) => {
+    console.log('[ChatWindow] handleNewMessage triggered for:', newMsg.id);
     setMessages(prev => {
-      // Deduplicate by DB id or if the temporary message's ID matches the new message's client_message_id
-      const isDuplicate = prev.some(m => 
+      // Find existing message by DB id or client_message_id
+      const existingIndex = prev.findIndex(m => 
         m.id === newMsg.id || 
-        m.id === newMsg.client_message_id ||
-        (m.client_message_id && m.client_message_id === newMsg.client_message_id)
+        (newMsg.client_message_id && m.id === newMsg.client_message_id) ||
+        (newMsg.client_message_id && m.client_message_id === newMsg.client_message_id)
       );
 
-      if (isDuplicate) {
-        // Replace the temporary message with the real one from the DB
-        return prev.map(m => 
-          (m.id === newMsg.client_message_id || m.client_message_id === newMsg.client_message_id) ? newMsg : m
-        );
+      if (existingIndex >= 0) {
+        console.log('[ChatWindow] Updating existing message at index', existingIndex);
+        const updated = [...prev];
+        updated[existingIndex] = { 
+          ...newMsg, 
+          // Preserve profiles if we already fetched them (e.g. from initial load or sender)
+          profiles: updated[existingIndex].profiles || newMsg.profiles,
+          // Preserve action_requests when updating
+          action_requests: updated[existingIndex].action_requests || newMsg.action_requests || []
+        };
+        return updated;
       }
+      
+      console.log('[ChatWindow] Appending brand new message');
       return [...prev, newMsg];
     });
   }, []);
 
-  useGroupRealtime(groupId, handleNewMessage);
+  const handleActionRequestUpdate = useCallback((messageId, actionRequest, clientMessageId) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId || (clientMessageId && msg.id === clientMessageId) || (clientMessageId && msg.client_message_id === clientMessageId)) {
+        const currentRequests = msg.action_requests || [];
+        const existingIndex = currentRequests.findIndex(r => r.id === actionRequest.id);
+        
+        let newRequests;
+        if (existingIndex >= 0) {
+          newRequests = [...currentRequests];
+          newRequests[existingIndex] = actionRequest;
+        } else {
+          newRequests = [...currentRequests, actionRequest];
+        }
+        return { ...msg, action_requests: newRequests };
+      }
+      return msg;
+    }));
+  }, []);
+
+  useGroupRealtime(groupId, handleNewMessage, handleActionRequestUpdate);
 
   useEffect(() => {
     scrollToBottom();
@@ -95,12 +122,17 @@ export default function ChatWindow({ groupId }) {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      await supabase.from('messages').insert([{
+      const { data, error } = await supabase.from('messages').insert([{
         group_id: groupId,
         sender_id: user.id,
         body,
         client_message_id: clientMessageId
-      }]);
+      }]).select().single();
+
+      if (data) {
+        // Update the temp message with the real DB id instantly so action_requests can link to it
+        setMessages(prev => prev.map(m => m.id === clientMessageId ? { ...m, id: data.id } : m));
+      }
     } catch (e) {
       console.error('Failed to send:', e);
     }
@@ -108,13 +140,13 @@ export default function ChatWindow({ groupId }) {
 
   if (!groupId) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 relative bg-transparent">
-        <div className="w-28 h-28 bg-white/5 rounded-[2rem] flex items-center justify-center mb-8 border border-white/10 shadow-2xl backdrop-blur-md animate-float">
-           <svg className="w-12 h-12 text-indigo-300 drop-shadow-[0_0_15px_rgba(99,102,241,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="flex-1 flex flex-col items-center justify-center text-sandstone-800 relative bg-transparent">
+        <div className="w-28 h-28 bg-sandstone-50 rounded-[2rem] flex items-center justify-center mb-8 border border-sandstone-300 shadow-sand animate-float">
+           <svg className="w-12 h-12 text-accent drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
             </svg>
         </div>
-        <p className="text-xl font-light text-indigo-100 tracking-wide">Select a workspace to initiate neural sync</p>
+        <p className="text-xl font-medium text-sandstone-900 tracking-wide">Select a workspace to begin collaboration</p>
       </div>
     );
   }
@@ -123,10 +155,13 @@ export default function ChatWindow({ groupId }) {
     <div className="flex-1 flex relative overflow-hidden bg-transparent">
       <div className="flex-1 flex flex-col relative bg-transparent z-10">
         {/* Header */}
-        <div className="px-8 py-6 border-b border-white/5 bg-black/20 backdrop-blur-2xl z-20 shadow-[0_4px_30px_rgba(0,0,0,0.1)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.8)] animate-pulse"></div>
-            <h2 className="text-xl font-bold text-white tracking-wide">Encrypted Channel</h2>
+        <div className="px-8 py-4 border-b border-sandstone-300 bg-sandstone-100/80 backdrop-blur-2xl z-20 shadow-sm flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-accent"></div>
+              <h2 className="text-xl font-bold text-sandstone-900 tracking-wide">Encrypted Channel</h2>
+            </div>
+            <p className="text-xs text-warm-muted mt-0.5 font-medium ml-4">End-to-end encrypted · Secure Workspace</p>
           </div>
           <div className="flex items-center gap-3">
             {inviteCode && (
@@ -136,48 +171,38 @@ export default function ChatWindow({ groupId }) {
                   navigator.clipboard.writeText(url);
                   alert('Invite link copied to clipboard!');
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 transition-all font-medium text-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sandstone-50 hover:bg-sandstone-300 text-sandstone-900 border border-sandstone-300 transition-all font-bold text-sm shadow-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
                 Copy Invite Link
               </button>
             )}
-            <button 
-              onClick={() => setShowPriorityPanel(!showPriorityPanel)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 transition-all font-medium text-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Priority Panel
+            <button className="p-2 text-sandstone-800 hover:bg-sandstone-300 rounded-lg transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
             </button>
           </div>
         </div>
 
         {/* Messages */}
         <div className="flex-1 p-8 overflow-y-auto z-10 flex flex-col gap-6 custom-scrollbar bg-transparent">
-          {loading && <div className="text-center text-indigo-300 animate-pulse">Syncing neural link...</div>}
+          {loading && <div className="text-center text-warm-muted animate-pulse">Syncing...</div>}
           {!loading && messages.length === 0 && (
-            <div className="text-center text-gray-400 mt-10 italic">Channel established. Awaiting input.</div>
+            <div className="text-center text-warm-muted mt-10 italic">Channel established. Awaiting input.</div>
           )}
           {messages.map(msg => (
-            <MessageBubble key={msg.id} msg={msg} isMe={msg.sender_id === user.id} />
+            <MessageBubble key={msg.id} msg={msg} isMe={msg.sender_id === user.id} currentUser={user} />
           ))}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Composer */}
-        <div className="p-6 bg-black/30 backdrop-blur-3xl border-t border-white/5 z-10">
+        <div className="p-6 bg-sandstone-100/90 backdrop-blur-3xl border-t border-sandstone-300 z-10">
           <MessageComposer onSend={sendMessage} />
         </div>
       </div>
 
-      {/* Slide-over Priority Panel */}
-      {showPriorityPanel && (
-        <PriorityPanel groupId={groupId} onClose={() => setShowPriorityPanel(false)} />
-      )}
     </div>
   );
 }

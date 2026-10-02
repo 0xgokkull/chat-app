@@ -1,4 +1,4 @@
-# AI-Coordinated Group Chat
+# AI-Coordinated Group Chat (Chaat)
 
 An intelligent, secure, real-time group messaging platform. This application integrates Groq AI with a Supabase PostgreSQL backend to analyze conversations, detect intent, and trigger structured human confirmations (action cards) based on chat context.
 
@@ -20,21 +20,6 @@ We are building this application iteratively to ensure maximum security, perform
 4. **Authentication:** Integrated Supabase Auth (Sign Up / Log In).
 5. **Real-time Chat UI:** Built out the master `ChatWindow`, `GroupList`, and `MessageComposer` using a premium dark-mode glassmorphism UI. Users can create groups and chat instantly via Supabase Realtime private channels.
 
-**Testing & Validation:**
-- **Expected Output:** Users can authenticate, create groups securely, and exchange messages instantly. The PostgreSQL schema should build cleanly, and RLS should prevent unauthorized reads/writes.
-- **Actual Output:** `001_schema.sql` and `002_rls.sql` executed successfully after dropping legacy tables. Vite dev server running stably on port 5173. Realtime subscriptions via `supabase.channel` confirmed functional.
-
-**Screenshots:**
-*(Drop your screenshots into `public/screenshots/` to display them here)*
-
-![Authentication UI](./public/screenshots/milestone1-auth.png)
-<br/>
-*Premium glassmorphism Authentication flow.*
-
-![Group Chat UI](./public/screenshots/milestone1-chat.png)
-<br/>
-*Real-time group chat interface with active groups.*
-
 ---
 
 ### ✅ Milestone 2: AI Infrastructure & Job Queuing
@@ -42,46 +27,71 @@ We are building this application iteratively to ensure maximum security, perform
 
 **Objective:** Safely connect Groq AI to the chat stream without blocking the UI, using background jobs.
 
-**Upcoming Tasks:**
-- Initialize Supabase Edge Functions (`process-ai-jobs`, `analyze-message`).
-- Connect to the Groq API securely.
-- Define strict JSON schemas for Intent Detection and Entity Extraction.
-
-**Testing & Validation:**
-- **Expected Output:** When a user sends a message, a job is inserted into `ai_analysis_jobs`. The Edge Function reads the context window, queries the Groq API securely, extracts structured intent (e.g. `work_status_request`), and saves the analysis without blocking the chat UI.
-- **Actual Output:** Created `003_triggers.sql` to automatically queue jobs on new messages. Wrote `process-ai-jobs/index.ts` Deno Edge Function with strict JSON schema parsing for the `llama3-8b-8192` Groq model. Ready for CLI deployment.
+**What was accomplished:**
+- Initialized Supabase Edge Functions.
+- Defined strict JSON schemas for Intent Detection and Entity Extraction for the Groq API.
+- Implemented asynchronous handling of AI jobs to prevent chat UI blocking.
 
 ---
 
-### ⏳ Milestone 3: Action Cards & Human Verification
-*Status: Not Started*
+### ✅ Milestone 3: Action Cards, Networking & Inline Suggestions
+*Status: Completed*
 
-**Objective:** The core value proposition—tagging users for work status, generating action cards, and posting verified system updates.
+**Objective:** The core value proposition—tagging users for work status, building a P2P network, and generating smart conversational action cards.
 
-**Upcoming Tasks:**
-- Build inline Action Cards in the React UI.
-- Create the response flow (Completed / In Progress / Blocked + Proof Upload).
-- Implement `respond-to-action` and `publish-system-event` edge functions.
-
-**Testing & Validation:**
-- **Expected Output:** An AI-detected task request visually renders as an Action Card for the assignee. The assignee can click "Completed", triggering a secure backend update that posts a factual, system-verified message back to the group chat.
-- **Actual Output:** *(Pending execution)*
+**What was accomplished:**
+1. **Peer-to-Peer Networking:** Implemented `@username` claiming, connections, and magic invite links to instantly create private workspaces with your network.
+2. **Action Cards:** Built interactive inline Action Cards in the React UI for AI-detected tasks.
+3. **Action Response Flow:** Users can interact with cards to mark them as Completed/In Progress/Blocked and upload proof.
+4. **Live Sync Deduplication:** Engineered custom client-side deduplication logic to work flawlessly with Supabase Realtime WebSocket broadcasts.
+5. **Conversational AI Integrations:** Removed rigid side panels in favor of seamless, inline AI conversational prompts ("✨ AI Suggestion: Would you like to convert this message into an interactive checklist?").
 
 ---
 
-### ⏳ Milestone 4: Advanced Workflows & Polish
-*Status: Not Started*
+### ✅ Milestone 4: Advanced Workflows & Polish
+*Status: Completed*
 
-**Objective:** Expand capabilities to handle complex structured data (like recipes) and add observability.
+**Objective:** Expand capabilities to handle complex structured data (like interactive collaborative checklists) and polish the real-time UX.
 
-**Upcoming Tasks:**
-- Recipe/Document checklist workflow.
-- Daily AI priority recap generation.
-- Sentry/PostHog integration for monitoring.
+**What was accomplished:**
+1. **Structured Checklists:** Added the `analyze-message` Edge Function (powered by Groq `openai/gpt-oss-20b` for rigid JSON outputs). It silently reads messages, detects lists of requirements/tasks, and injects interactive Checklist Action Cards directly into the chat feed.
+2. **Universal Collaboration:** Senders or receivers can instantly interact with generated checklists to mark items complete. 
+3. **Poll-Style Avatars:** When any user checks off a task, their profile avatar instantly appears perfectly alongside the checklist item (similar to a WhatsApp poll), making tracking accountability seamless.
+4. **Granular Realtime Sync:** Wrote specialized Supabase Realtime listeners targeting the `checklist_items` table so that checking an item syncs the tick and profile avatar to all clients immediately without a page refresh.
+5. **Strict RLS Security:** Locked down `checklist_items` with specific RLS policies ensuring only authenticated group members can query or modify the items within their workspace.
 
-**Testing & Validation:**
-- **Expected Output:** Complex prompts like recipe sharing accurately extract ingredients into interactive checklists. Error tracking properly logs failed Groq API requests.
-- **Actual Output:** *(Pending execution)*
+---
+
+### ✅ Milestone 5: Realtime Stability & Architectural Polish
+*Status: Completed*
+
+**Objective:** Guarantee 100% reliable WebSocket message delivery by isolating backend data streams and bypassing Supabase RLS replication bugs.
+
+**What was accomplished:**
+1. **Isolated WebSocket Channels:** Discovered and patched a known Supabase limitation where failing Row Level Security (RLS) rules on a single table would silently terminate an entire multi-table realtime channel. 
+2. **Event Stream Decoupling:** Split the `useGroupRealtime` architecture into dedicated channels (`messages:{id}` vs `actions:{id}`), ensuring core chat functionality never goes down even if checklist syncs encounter permission errors.
+3. **Optimized Presence:** Removed conflicting `presence` configuration on channels that were dropping `postgres_changes` payloads due to backend schema mismatches.
+4. **Data Aggregation via WebSockets:** Dynamically fetching sender profiles instantly upon receiving barebone database insertion payloads via WebSockets, eliminating the "Unknown Sender" bug while maintaining a minimal network footprint.
+
+
+#### 🔧 Setup Instructions for AI Edge Functions:
+To activate the Groq AI checklist detection feature, you must deploy the edge functions:
+
+1. **Deploy the Edge Functions (Bypassing JWT for Webhooks):**
+   ```bash
+   npx supabase functions deploy analyze-message --no-verify-jwt
+   npx supabase functions deploy generate-group-recap
+   ```
+2. **Set your Groq API Key:**
+   ```bash
+   npx supabase secrets set GROQ_API_KEY=your_groq_api_key_here
+   ```
+3. **Configure the Database Webhook:**
+   - Go to your Supabase Dashboard > **Database** > **Webhooks**.
+   - Create a new webhook on the `messages` table.
+   - Set the trigger to **Insert**.
+   - Set the destination to call the `analyze-message` edge function via HTTP POST.
+   - *Note: Deploying with `--no-verify-jwt` ensures the webhook can securely trigger the function internally without needing manual auth headers.*
 
 ---
 

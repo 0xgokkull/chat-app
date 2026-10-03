@@ -22,19 +22,44 @@ body {
   @apply bg-sandstone-100 text-sandstone-900 overflow-hidden font-sans text-[13px];
 }
 
-/* Premium Sandstone Light Background */
-.sandstone-bg {
-  background-color: #F7F3EC;
-  background-image: url("data:image/svg+xml,%3Csvg width='2000' height='1000' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,300 Q250,450 500,300 T1000,300 T1500,300 T2000,300 L2000,1000 L0,1000 Z' fill='%23E5D8C7' opacity='0.3'/%3E%3Cpath d='M0,450 Q250,300 500,450 T1000,450 T1500,450 T2000,450 L2000,1000 L0,1000 Z' fill='%23E98B2A' opacity='0.06'/%3E%3Cpath d='M0,600 Q250,750 500,600 T1000,600 T1500,600 T2000,600 L2000,1000 L0,1000 Z' fill='%233A2A20' opacity='0.03'/%3E%3C/svg%3E");
-  background-size: 2000px 100%;
-  background-position: center bottom;
-  background-attachment: fixed;
-  animation: wave-pan 20s linear infinite;
+/* Premium Sandstone Light Background - Upgraded Waves */
+.wave-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background-position: bottom;
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
 }
 
-@keyframes wave-pan {
-  0% { background-position-x: 0px; }
-  100% { background-position-x: -2000px; }
+.wave-1 {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 1000' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,500 Q250,650 500,500 T1000,500 L1000,1000 L0,1000 Z' fill='%23E5D8C7' opacity='0.3'/%3E%3C/svg%3E");
+  animation: wave-pan-slow 35s linear infinite;
+}
+
+.wave-2 {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 1000' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,600 Q250,500 500,600 T1000,600 L1000,1000 L0,1000 Z' fill='%23E98B2A' opacity='0.08'/%3E%3C/svg%3E");
+  animation: wave-pan-medium 25s linear infinite;
+}
+
+.wave-3 {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 1000' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,750 Q250,900 500,750 T1000,750 L1000,1000 L0,1000 Z' fill='%233A2A20' opacity='0.04'/%3E%3C/svg%3E");
+  animation: wave-pan-fast 18s linear infinite;
+}
+
+@keyframes wave-pan-slow {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes wave-pan-medium {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+@keyframes wave-pan-fast {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 @keyframes float {

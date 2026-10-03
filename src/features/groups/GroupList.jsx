@@ -42,16 +42,16 @@ export default function GroupList({ selectedGroupId, onSelectGroup }) {
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex gap-2 mb-6 p-1 bg-sandstone-100 rounded-xl border border-sandstone-300 relative z-10">
+      <div className="flex gap-2 mb-6 p-1.5 bg-white/30 backdrop-blur-md rounded-xl border border-white/40 relative z-10 shadow-sm">
         <button 
           onClick={() => setActiveTab('groups')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'groups' ? 'bg-sandstone-300 text-sandstone-900' : 'text-warm-muted hover:text-sandstone-900 hover:bg-sandstone-300/50'}`}
+          className={`flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-[#D96540]' : 'text-[#A49380] hover:text-[#4A3B2F]'}`}
         >
           Groups
         </button>
         <button 
           onClick={() => setActiveTab('network')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'network' ? 'bg-sandstone-300 text-sandstone-900' : 'text-warm-muted hover:text-sandstone-900 hover:bg-sandstone-300/50'}`}
+          className={`flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${activeTab === 'network' ? 'bg-white shadow-sm text-[#D96540]' : 'text-[#A49380] hover:text-[#4A3B2F]'}`}
         >
           Network
         </button>
@@ -67,23 +67,44 @@ export default function GroupList({ selectedGroupId, onSelectGroup }) {
             ) : (
               groups.map(g => (
                 <li key={g.id}>
-                  <button
-                    onClick={() => onSelectGroup(g.id)}
-                    className={`w-full text-left px-4 py-3 rounded-xl transition-all ${selectedGroupId === g.id ? 'bg-accent-light text-accent-dark shadow-sm' : 'bg-transparent text-sandstone-800 hover:bg-sandstone-300/60'}`}
-                  >
-                    <span className="font-semibold tracking-wide">{g.name}</span>
-                  </button>
+                  <div className={`w-full group/item flex items-center justify-between px-5 py-4 rounded-[1.25rem] transition-all duration-300 ${selectedGroupId === g.id ? 'bg-gradient-to-r from-[#F48E6E] to-[#D96540] text-white shadow-md shadow-[#F48E6E]/30 translate-x-1' : 'bg-transparent text-[#4A3B2F] hover:bg-white/40'}`}>
+                    <button
+                      onClick={() => onSelectGroup(g.id)}
+                      className="flex-1 text-left"
+                    >
+                      <span className="font-bold tracking-wide">{g.name}</span>
+                    </button>
+                    {g.created_by === user.id && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Are you sure you want to delete this workspace?')) {
+                            await import('../../lib/supabaseClient').then(({ supabase }) => 
+                              supabase.from('groups').delete().eq('id', g.id)
+                            );
+                            setGroups(groups.filter(group => group.id !== g.id));
+                            if (selectedGroupId === g.id) onSelectGroup(null);
+                          }
+                        }}
+                        className={`p-2 rounded-xl transition-all opacity-0 group-hover/item:opacity-100 ${selectedGroupId === g.id ? 'hover:bg-white/20 text-white' : 'hover:bg-red-100 text-red-500'}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))
             )}
           </ul>
-          <div className="relative z-10 mt-auto pt-2">
+          <div className="relative z-10 mt-auto pt-4">
             <button 
               onClick={() => setShowCreateModal(true)} 
-              className="w-full bg-sandstone-100 hover:bg-accent/10 border border-accent/20 text-accent py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+              className="w-full bg-white/60 hover:bg-white/90 border border-white/80 text-[#D96540] py-3.5 rounded-[1.25rem] text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
               New Workspace
             </button>

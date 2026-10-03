@@ -94,6 +94,17 @@ serve(async (req) => {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // Broadcast the new action request directly via Realtime
+      // This bypasses the postgres_changes RLS subquery limitations
+      await supabase.channel('group:' + record.group_id).send({
+        type: 'broadcast',
+        event: 'action_request_created',
+        payload: {
+          id: actionRequest.id,
+          source_message_id: record.id
+        }
+      });
     } else if (analysis.intent === "recap_request") {
       // Trigger the recap generation edge function internally
       const recapRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-group-recap`, {

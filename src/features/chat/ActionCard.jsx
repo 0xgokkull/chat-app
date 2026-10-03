@@ -2,12 +2,19 @@ import React, { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import ActionResponseModal from './ActionResponseModal';
 import { supabase } from '../../lib/supabaseClient';
+import { broadcastToGroup } from './useGroupRealtime';
 
 export default function ActionCard({ request, assigneeName, currentUser }) {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [localRequest, setLocalRequest] = useState(request);
 
-  const isAssignee = user?.id === request.assigned_user_id;
+  // Sync local state when the authoritative request prop updates from Realtime
+  React.useEffect(() => {
+    setLocalRequest(request);
+  }, [request]);
+
+  const isAssignee = user?.id === localRequest.assigned_user_id;
 
   const stateColors = {
     pending: 'bg-sandstone-200 text-sandstone-800 border-sandstone-300',
@@ -16,51 +23,55 @@ export default function ActionCard({ request, assigneeName, currentUser }) {
     cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
   };
 
-  const stateColor = stateColors[request.state] || stateColors.pending;
+  const stateColor = stateColors[localRequest.state] || stateColors.pending;
 
   return (
     <>
-      <div className={`mt-3 p-4 rounded-xl bg-sandstone-50 border border-sandstone-300 shadow-sand relative overflow-hidden group`}>
+      <div className={`mt-2 p-3 rounded-xl bg-white/40 backdrop-blur-md border border-white/60 shadow-sm relative overflow-hidden group transition-all duration-300 hover:shadow-lg hover:shadow-[#F48E6E]/10 hover:-translate-y-0.5 animate-slide-up`}>
         
-        {!(request.action_type === 'checklist' && request.state === 'pending') && (
-          <div className="flex justify-between items-start mb-2">
+        {!(localRequest.action_type === 'checklist' && localRequest.state === 'pending') && (
+          <div className="flex justify-between items-start mb-1.5">
             <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h4 className="font-bold text-sandstone-900 text-sm tracking-wide">{request.title}</h4>
+              <h4 className="font-bold text-sandstone-900 text-xs tracking-wide">{localRequest.title}</h4>
             </div>
-            <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full border ${stateColor}`}>
-              {request.state}
+            <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full border ${stateColor}`}>
+              {localRequest.state}
             </span>
           </div>
         )}
 
-        {request.description && (
-          <p className="text-sandstone-800 text-xs mt-1 mb-3 leading-relaxed">
-            {request.description}
+        {localRequest.description && (
+          <p className="text-sandstone-800 text-[11px] mt-1 mb-2 leading-relaxed">
+            {localRequest.description}
           </p>
         )}
 
-        {request.action_type === 'checklist' && request.state === 'pending' && (
-          <div className="flex flex-col gap-3 p-3 mt-1 rounded-xl bg-accent/5 border border-accent/20 shadow-ai-glow animate-ai-pulse">
-            <p className="text-sm text-accent font-medium flex items-center gap-2">
-              <span className="animate-bounce">✨</span> AI Suggestion: Would you like to convert this message into an interactive checklist?
+        {localRequest.action_type === 'checklist' && localRequest.state === 'pending' && (
+          <div className="flex flex-col gap-2 p-2 mt-1 rounded-lg bg-white/50 border border-white/70 shadow-ai-glow animate-ai-pulse backdrop-blur-sm">
+            <p className="text-xs text-accent font-semibold flex items-center gap-1.5">
+              <span className="animate-bounce">✨</span> AI Suggestion: Convert into interactive checklist?
             </p>
             <div className="flex gap-3">
               <button 
                 onClick={async () => {
-                  await supabase.from('action_requests').update({ state: 'responded' }).eq('id', request.id);
+                  setLocalRequest(prev => ({ ...prev, state: 'responded' }));
+                  await supabase.from('action_requests').update({ state: 'responded' }).eq('id', localRequest.id);
+                  await broadcastToGroup(localRequest.group_id, 'action_request_updated', { id: localRequest.id });
                 }}
-                className="px-4 py-1.5 bg-gradient-to-r from-accent via-[#ffb973] to-accent bg-[length:200%_auto] animate-shimmer text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-accent/20"
+                className="px-4 py-1.5 bg-gradient-to-br from-[#F48E6E] to-[#D96540] text-white text-xs font-bold rounded-lg transition-all shadow-md shadow-[#F48E6E]/30"
               >
                 Yes, convert
               </button>
               <button 
                 onClick={async () => {
-                  await supabase.from('action_requests').update({ state: 'cancelled' }).eq('id', request.id);
+                  setLocalRequest(prev => ({ ...prev, state: 'cancelled' }));
+                  await supabase.from('action_requests').update({ state: 'cancelled' }).eq('id', localRequest.id);
+                  await broadcastToGroup(localRequest.group_id, 'action_request_updated', { id: localRequest.id });
                 }}
-                className="px-4 py-1.5 bg-sandstone-200 hover:bg-sandstone-300 text-sandstone-900 text-xs font-bold rounded-lg transition-all"
+                className="px-4 py-1.5 bg-white/60 hover:bg-white/80 border border-white/80 text-[#4A3B2F] text-xs font-bold rounded-lg transition-all"
               >
                 No, dismiss
               </button>
@@ -68,25 +79,37 @@ export default function ActionCard({ request, assigneeName, currentUser }) {
           </div>
         )}
 
-        {request.action_type === 'checklist' && request.state === 'responded' && request.checklist_items && (
-          <div className="mt-2 mb-3 space-y-1.5">
-            {request.checklist_items.map((item, index) => (
-              <div key={item.id} className="flex items-start gap-3 bg-white/50 p-2.5 rounded-lg border border-sandstone-300/50 shadow-sm opacity-0 animate-slide-up" style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'forwards' }}>
+        {localRequest.action_type === 'checklist' && localRequest.state === 'responded' && localRequest.checklist_items && (
+          <div className="mt-1.5 mb-2 space-y-1">
+            {localRequest.checklist_items.map((item, index) => (
+              <div key={item.id} className="flex items-start gap-2 bg-white/50 p-2 rounded-md border border-sandstone-300/50 shadow-sm opacity-0 animate-slide-up" style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'forwards' }}>
                 <input
                   type="checkbox"
                   checked={item.state === 'confirmed'}
                   onChange={async (e) => {
                     const newState = e.target.checked ? 'confirmed' : 'unchecked';
+                    
+                    // Optimistic update
+                    setLocalRequest(prev => {
+                      const newItems = prev.checklist_items.map(i => 
+                        i.id === item.id 
+                          ? { ...i, state: newState, profiles: e.target.checked ? user : null } 
+                          : i
+                      );
+                      return { ...prev, checklist_items: newItems };
+                    });
+
                     await supabase
                       .from('checklist_items')
                       .update({ state: newState, confirmed_by: e.target.checked ? user?.id : null, confirmed_at: e.target.checked ? new Date().toISOString() : null })
                       .eq('id', item.id);
+                    await broadcastToGroup(localRequest.group_id, 'action_request_updated', { id: localRequest.id });
                   }}
                   className="mt-0.5 w-4 h-4 rounded border-sandstone-300 bg-white text-accent focus:ring-accent/50 cursor-pointer"
                 />
                 <div className="flex flex-col flex-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${item.state === 'confirmed' ? 'text-sandstone-800 line-through' : 'text-sandstone-900'}`}>
+                    <span className={`text-xs font-medium ${item.state === 'confirmed' ? 'text-sandstone-800 line-through' : 'text-sandstone-900'}`}>
                       {item.label}
                     </span>
                     {item.state === 'confirmed' && item.profiles && (
@@ -110,21 +133,21 @@ export default function ActionCard({ request, assigneeName, currentUser }) {
           </div>
         )}
 
-        {!(request.action_type === 'checklist' && request.state === 'pending') && (
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-sandstone-300">
+        {!(localRequest.action_type === 'checklist' && localRequest.state === 'pending') && (
+          <div className="flex justify-between items-center mt-2 pt-2 border-t border-sandstone-300">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-sandstone-200 flex items-center justify-center border border-sandstone-300">
                 <span className="text-[10px] font-bold text-sandstone-800">{assigneeName?.charAt(0)?.toUpperCase() || '?'}</span>
               </div>
               <span className="text-xs text-warm-muted">
-                {request.action_type === 'checklist' ? 'Created by' : 'Assigned to'} <strong className="text-sandstone-900 font-semibold">{isAssignee ? 'You' : assigneeName || 'Unknown'}</strong>
+                {localRequest.action_type === 'checklist' ? 'Created by' : 'Assigned to'} <strong className="text-sandstone-900 font-semibold">{isAssignee ? 'You' : assigneeName || 'Unknown'}</strong>
               </span>
             </div>
 
-            {isAssignee && request.state === 'pending' && request.action_type !== 'checklist' && (
+            {isAssignee && localRequest.state === 'pending' && localRequest.action_type !== 'checklist' && (
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="px-4 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg transition-all shadow-sm"
+                className="px-4 py-1.5 bg-gradient-to-br from-[#F48E6E] to-[#D96540] hover:scale-105 text-white text-xs font-bold rounded-lg transition-all shadow-md shadow-[#F48E6E]/30"
               >
                 Respond
               </button>
@@ -135,7 +158,7 @@ export default function ActionCard({ request, assigneeName, currentUser }) {
 
       {isModalOpen && (
         <ActionResponseModal
-          request={request}
+          request={localRequest}
           onClose={() => setIsModalOpen(false)}
         />
       )}

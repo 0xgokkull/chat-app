@@ -65,13 +65,14 @@ We are building this application iteratively to ensure maximum security, perform
 ### ✅ Milestone 5: Realtime Stability & Architectural Polish
 *Status: Completed*
 
-**Objective:** Guarantee 100% reliable WebSocket message delivery by isolating backend data streams and bypassing Supabase RLS replication bugs.
+**Objective:** Guarantee 100% reliable WebSocket message delivery by bypassing Supabase RLS replication bugs and implementing instant Optimistic UI updates.
 
 **What was accomplished:**
-1. **Isolated WebSocket Channels:** Discovered and patched a known Supabase limitation where failing Row Level Security (RLS) rules on a single table would silently terminate an entire multi-table realtime channel. 
-2. **Event Stream Decoupling:** Split the `useGroupRealtime` architecture into dedicated channels (`messages:{id}` vs `actions:{id}`), ensuring core chat functionality never goes down even if checklist syncs encounter permission errors.
-3. **Optimized Presence:** Removed conflicting `presence` configuration on channels that were dropping `postgres_changes` payloads due to backend schema mismatches.
-4. **Data Aggregation via WebSockets:** Dynamically fetching sender profiles instantly upon receiving barebone database insertion payloads via WebSockets, eliminating the "Unknown Sender" bug while maintaining a minimal network footprint.
+1. **Bypassing RLS Replication Limits:** Identified a core limitation in Supabase's WALRUS engine where Row Level Security (RLS) policies using subqueries silently drop `postgres_changes` events.
+2. **Direct WebSocket Broadcasting:** Fully migrated both user-to-user messages and interactive AI Action Cards away from database polling to direct WebSocket `Broadcast` events over the live channel.
+3. **Optimistic UI Updates:** Re-engineered the interactive Action Cards and checklists with local state overlays, guaranteeing instant (0ms) visual feedback for the sender before the network call even finishes.
+4. **AI Edge Function Broadcasts:** Upgraded the `analyze-message` Deno Edge Function to securely fire its own realtime WebSocket broadcasts when generating checklists, ensuring the React UI updates instantly.
+5. **UI Polish:** Updated the application sidebar and message bubbles to intelligently parse and display clean usernames instead of raw email addresses.
 
 
 #### 🔧 Setup Instructions for AI Edge Functions:
